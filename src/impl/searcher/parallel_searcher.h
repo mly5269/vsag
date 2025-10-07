@@ -27,6 +27,9 @@
 namespace vsag {
 
 class ParallelSearcher {
+
+constexpr uint32_t NUM_STRIPES = 256;
+
 public:
     explicit ParallelSearcher(const IndexCommonParam& common_param,
                               std::shared_ptr<SafeThreadPool> search_pool,
@@ -72,6 +75,8 @@ private:
     std::shared_ptr<SafeThreadPool> pool{nullptr};
 
     MutexArrayPtr mutex_array_{nullptr};
+
+    std::shared_ptr<PointsMutex> vt_mutex_array{nullptr};
 
     // runtime parameters
     uint32_t prefetch_stride_visit_{3};
