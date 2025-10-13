@@ -369,7 +369,7 @@ HGraph::KnnSearch(const DatasetPtr& query,
                 search_param.ep = result->Top().second;
             }
         }
-
+        
         search_param.ef = std::max(params.ef_search, k);
         search_param.is_inner_id_allowed = ft;
         search_param.topk = static_cast<int64_t>(search_param.ef);
@@ -479,7 +479,7 @@ HGraph::search_one_graph(const void* query,
     auto visited_list = this->pool_->TakeOne();
     DistHeapPtr result = nullptr;
     if (inner_search_param.use_muti_threads_for_one_query && inner_search_param.level_0) {
-        result = this->parallel_searcher_->Search(
+        result = this->parallel_searcher_->Parallel_Search(
             graph, flatten, visited_list, query, inner_search_param);
     } else {
         result = this->searcher_->Search(
@@ -1885,6 +1885,9 @@ HGraph::SearchWithRequest(const SearchRequest& request) const {
         search_param.time_cost = std::make_shared<Timer>();
         search_param.time_cost->SetThreshold(params.timeout_ms);
     }
+    search_param.use_muti_threads_for_one_query = true;
+    search_param.parallel_search_thread_count_per_query = 8;
+    search_param.level_0 = true;
     auto search_result = this->search_one_graph(
         raw_query, this->bottom_graph_, this->basic_flatten_codes_, search_param);
 

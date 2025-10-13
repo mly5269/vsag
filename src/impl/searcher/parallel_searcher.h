@@ -28,7 +28,7 @@ namespace vsag {
 
 class ParallelSearcher {
 
-constexpr uint32_t NUM_STRIPES = 256;
+static constexpr uint32_t NUM_STRIPES = 256;
 
 public:
     explicit ParallelSearcher(const IndexCommonParam& common_param,
@@ -42,6 +42,14 @@ public:
            const void* query,
            const InnerSearchParam& inner_search_param,
            const LabelTablePtr& label_table = nullptr) const;
+
+    DistHeapPtr
+    Parallel_Search(const GraphInterfacePtr& graph,
+                         const FlattenInterfacePtr& flatten,
+                         const VisitedListPtr& vl,
+                         const void* query,
+                         const InnerSearchParam& inner_search_param,
+                         const LabelTablePtr& label_table = nullptr) const;
 
     void
     SetMutexArray(MutexArrayPtr new_mutex_array);
@@ -60,6 +68,16 @@ private:
           std::vector<Vector<InnerIdType>>& neighbors,
           uint64_t point_visited_num) const;
 
+    uint32_t
+parallel_visit(const GraphInterfacePtr& graph,
+                     const VisitedListPtr& vl,
+                     const std::pair<float, uint64_t>& current_node_pair,
+                     const FilterPtr& filter,
+                     float skip_ratio,
+                     Vector<InnerIdType>& to_be_visited_rid,
+                     Vector<InnerIdType>& to_be_visited_id,
+                     Vector<InnerIdType>& neighbors) const;
+
     template <InnerSearchMode mode = KNN_SEARCH>
     DistHeapPtr
     search_impl(const GraphInterfacePtr& graph,
@@ -68,6 +86,15 @@ private:
                 const void* query,
                 const InnerSearchParam& inner_search_param,
                 const LabelTablePtr& label_table = nullptr) const;
+
+    template <InnerSearchMode mode = KNN_SEARCH>
+    DistHeapPtr
+parallel_search_impl(const GraphInterfacePtr& graph,
+                                        const FlattenInterfacePtr& flatten,
+                                        const VisitedListPtr& vl,
+                                        const void* query,
+                                        const InnerSearchParam& inner_search_param,
+                                        const LabelTablePtr& label_table = nullptr) const ;
 
 private:
     Allocator* allocator_{nullptr};

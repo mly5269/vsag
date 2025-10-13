@@ -241,6 +241,8 @@ BasicSearcher::search_impl(const GraphInterfacePtr& graph,
                            const void* query,
                            const InnerSearchParam& inner_search_param,
                            const LabelTablePtr& label_table) const {
+    // std::cout << "----------------基础搜索器----------------" << std::endl;
+    // auto t1 = std::chrono::high_resolution_clock::now();
     Allocator* alloc =
         inner_search_param.search_alloc == nullptr ? allocator_ : inner_search_param.search_alloc;
     auto top_candidates = std::make_shared<StandardHeap<true, false>>(alloc, -1);
@@ -249,7 +251,7 @@ BasicSearcher::search_impl(const GraphInterfacePtr& graph,
     if (not graph or not flatten) {
         return top_candidates;
     }
-
+    
     auto computer = flatten->FactoryComputer(query);
 
     auto is_id_allowed = inner_search_param.is_inner_id_allowed;
@@ -267,6 +269,7 @@ BasicSearcher::search_impl(const GraphInterfacePtr& graph,
     Vector<InnerIdType> neighbors(graph->MaximumDegree(), alloc);
     Vector<float> line_dists(graph->MaximumDegree(), alloc);
 
+
     Filter* attr_ft = nullptr;
     if (not inner_search_param.executors.empty() and inner_search_param.executors[0] != nullptr) {
         inner_search_param.executors[0]->Clear();
@@ -279,22 +282,32 @@ BasicSearcher::search_impl(const GraphInterfacePtr& graph,
     };
 
     flatten->Query(&dist, computer, &ep, 1, alloc);
+    
     if (check_func(ep)) {
         top_candidates->Push(dist, ep);
         lower_bound = top_candidates->Top().first;
     }
+    
     if constexpr (mode == InnerSearchMode::RANGE_SEARCH) {
         if (dist > inner_search_param.radius and not top_candidates->Empty()) {
             top_candidates->Pop();
         }
     }
+    
     if (dist < THRESHOLD_ERROR) {
         inner_search_param.duplicate_id = ep;
     }
     candidate_set->Push(-dist, ep);
     vl->Set(ep);
 
+    // std::chrono::microseconds::rep dd1 = 0;
+    // std::chrono::microseconds::rep dd2 = 0;
+    // std::chrono::microseconds::rep dd3 = 0;
+    // std::chrono::microseconds::rep dd4 = 0;
+    // std::chrono::microseconds::rep dd5 = 0;
+    // auto t2 = std::chrono::high_resolution_clock::now();
     while (not candidate_set->Empty()) {
+        //auto ll1 = std::chrono::high_resolution_clock::now();
         hops++;
         auto current_node_pair = candidate_set->Top();
 
@@ -309,11 +322,11 @@ BasicSearcher::search_impl(const GraphInterfacePtr& graph,
             }
         }
         candidate_set->Pop();
-
+        //auto ll2 = std::chrono::high_resolution_clock::now();
         if (not candidate_set->Empty()) {
             graph->Prefetch(candidate_set->Top().second, 0);
         }
-
+        //auto ll3 = std::chrono::high_resolution_clock::now();
         count_no_visited = visit(graph,
                                  vl,
                                  current_node_pair,
@@ -324,10 +337,10 @@ BasicSearcher::search_impl(const GraphInterfacePtr& graph,
                                  neighbors);
 
         dist_cmp += count_no_visited;
-
+        //auto ll4 = std::chrono::high_resolution_clock::now();
         flatten->Query(
             line_dists.data(), computer, to_be_visited_id.data(), count_no_visited, alloc);
-
+        //auto ll5 = std::chrono::high_resolution_clock::now();
         for (uint32_t i = 0; i < count_no_visited; i++) {
             dist = line_dists[i];
             if (dist < THRESHOLD_ERROR) {
@@ -361,7 +374,17 @@ BasicSearcher::search_impl(const GraphInterfacePtr& graph,
                 }
             }
         }
+        // auto ll6 = std::chrono::high_resolution_clock::now();
+        // dd1 += std::chrono::duration_cast<std::chrono::microseconds>(ll2 - ll1).count();
+        // dd2 += std::chrono::duration_cast<std::chrono::microseconds>(ll3 - ll2).count();
+        // dd3 += std::chrono::duration_cast<std::chrono::microseconds>(ll4 - ll3).count();
+        // dd4 += std::chrono::duration_cast<std::chrono::microseconds>(ll5 - ll4).count();
+        // dd5 += std::chrono::duration_cast<std::chrono::microseconds>(ll6 - ll5).count();
+        
     }
+
+    // std::cout << "while：" << dd1 << " " << dd2 << " " << dd3 << " " << dd4 << " " << dd5 << std::endl;
+    // auto t3 = std::chrono::high_resolution_clock::now();
 
     if constexpr (mode == KNN_SEARCH) {
         while (top_candidates->Size() > inner_search_param.topk) {
@@ -378,6 +401,12 @@ BasicSearcher::search_impl(const GraphInterfacePtr& graph,
             top_candidates->Pop();
         }
     }
+    // auto t4 = std::chrono::high_resolution_clock::now();
+    // auto dur1 = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+    // auto dur2 = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t2).count();
+    // auto dur3 = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
+
+    // std::cout << "主线程：" << dur1 << " " << dur2 << " " << dur3 << std::endl;
 
     return top_candidates;
 }
